@@ -1,0 +1,26 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Output logs and personal data
+output/sent_history.csv
+output/manual_review.txt
+
+# Personal attachments and spreadsheets (exclude PDFs and non-sample data)
+attachments/*.pdf
+!attachments/README.txt
+input/*.xlsx
+input/*.xls
+!input/sample_recruiters.csv
+!input/README.txt
+
+# Environment variables & secrets
+.env
+.env.*
+*.local
+
+# Editor directories
+.vscode/
+.idea/
+
