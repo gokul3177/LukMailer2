@@ -2,8 +2,6 @@
 title Push LukMailer to GitHub
 cd /d "%~dp0"
 
-set "PATH=C:\Users\ADMIN\mingit\cmd;C:\Users\ADMIN\mingit\mingw64\bin;%PATH%"
-
 echo ============================================================
 echo             Pushing LukMailer to GitHub
 echo ============================================================

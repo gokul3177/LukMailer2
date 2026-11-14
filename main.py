@@ -21,6 +21,26 @@ def ensure_directories():
     os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+def load_env_file(filepath=None):
+    """Loads key=value pairs from .env into os.environ if file exists."""
+    if filepath is None:
+        filepath = os.path.join(BASE_DIR, ".env")
+    if not os.path.exists(filepath):
+        return
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k = k.strip()
+                v = v.strip().strip('"').strip("'")
+                if k and k not in os.environ:
+                    os.environ[k] = v
+    except Exception:
+        pass
+
 def load_sent_emails() -> set[str]:
     """Loads previously sent emails from history file to avoid duplicates."""
     if not os.path.exists(SENT_HISTORY_FILE):
@@ -53,13 +73,24 @@ def log_manual_review(row_dict: dict, reason: str):
 
 def find_or_prompt_contacts_file() -> str:
     """Finds contacts file in input folder or asks user to provide path."""
+    env_path = os.getenv("CONTACTS_FILE", "").strip()
+    if env_path:
+        full_env_path = env_path if os.path.isabs(env_path) else os.path.join(INPUT_DIR, env_path)
+        if os.path.isfile(full_env_path):
+            print(f"\n[+] Using contacts file from configuration: {os.path.basename(full_env_path)}")
+            return full_env_path
+
     candidates = [
         f for f in os.listdir(INPUT_DIR)
         if f.lower().endswith((".xlsx", ".xls", ".csv")) and not f.startswith("~")
     ]
+    auto_confirm = os.getenv("AUTO_CONFIRM", "").strip().lower() in ("true", "1", "yes")
+
     if len(candidates) == 1:
         auto_path = os.path.join(INPUT_DIR, candidates[0])
         print(f"\n[+] Found contacts file in input folder: {candidates[0]}")
+        if auto_confirm:
+            return auto_path
         use_auto = input("Use this file? (Y/n): ").strip().lower()
         if use_auto in ("", "y", "yes"):
             return auto_path
@@ -79,13 +110,24 @@ def find_or_prompt_contacts_file() -> str:
 
 def find_or_prompt_resume_file() -> str:
     """Finds resume in attachments folder or asks user to provide path."""
+    env_path = os.getenv("RESUME_FILE", "").strip()
+    if env_path:
+        full_env_path = env_path if os.path.isabs(env_path) else os.path.join(ATTACHMENTS_DIR, env_path)
+        if os.path.isfile(full_env_path):
+            print(f"\n[+] Using resume file from configuration: {os.path.basename(full_env_path)}")
+            return full_env_path
+
     candidates = [
         f for f in os.listdir(ATTACHMENTS_DIR)
         if f.lower().endswith(".pdf")
     ]
+    auto_confirm = os.getenv("AUTO_CONFIRM", "").strip().lower() in ("true", "1", "yes")
+
     if len(candidates) == 1:
         auto_path = os.path.join(ATTACHMENTS_DIR, candidates[0])
         print(f"\n[+] Found resume in attachments folder: {candidates[0]}")
+        if auto_confirm:
+            return auto_path
         use_auto = input("Use this resume? (Y/n): ").strip().lower()
         if use_auto in ("", "y", "yes"):
             return auto_path
@@ -113,66 +155,103 @@ def countdown_timer(seconds: int):
     sys.stdout.flush()
 
 def main():
+    load_env_file()
     ensure_directories()
     print("=" * 65)
     print("          LukMailer — AI-Powered Job Outreach Bot")
     print("=" * 65)
-    print("Interactive setup: Provide your credentials and preferences below.\n")
+    print("Initializing outreach pipeline...\n")
 
     # 1. Candidate Info
-    candidate_name = input("Your Full Name: ").strip()
-    while not candidate_name:
-        candidate_name = input("Please enter your Full Name: ").strip()
+    candidate_name = os.getenv("CANDIDATE_NAME", "").strip()
+    if candidate_name:
+        print(f"[*] Candidate Name: {candidate_name}")
+    else:
+        candidate_name = input("Your Full Name: ").strip()
+        while not candidate_name:
+            candidate_name = input("Please enter your Full Name: ").strip()
 
-    target_role = input("Target Job Role (e.g. Full Stack Developer, Data Analyst): ").strip()
-    while not target_role:
-        target_role = input("Please enter your Target Job Role: ").strip()
+    target_role = os.getenv("TARGET_ROLE", "").strip()
+    if target_role:
+        print(f"[*] Target Job Role: {target_role}")
+    else:
+        target_role = input("Target Job Role (e.g. Full Stack Developer, Data Analyst): ").strip()
+        while not target_role:
+            target_role = input("Please enter your Target Job Role: ").strip()
 
     # 2. Email Credentials
     print("\n--- Sender Email Configuration ---")
-    sender_email = input("Your Sending Email Address: ").strip()
-    while "@" not in sender_email:
-        sender_email = input("Invalid email. Enter your Sending Email Address: ").strip()
+    sender_email = os.getenv("SENDER_EMAIL", "").strip()
+    if sender_email and "@" in sender_email:
+        print(f"[*] Sending Email: {sender_email}")
+    else:
+        sender_email = input("Your Sending Email Address: ").strip()
+        while "@" not in sender_email:
+            sender_email = input("Invalid email. Enter your Sending Email Address: ").strip()
 
     host, port = resolve_smtp_settings(sender_email)
     print(f"[*] Detected SMTP Server: {host}:{port}")
 
-    while True:
-        sender_password = getpass.getpass("Email Password / App Password (input hidden): ").strip()
-        if not sender_password:
-            print("[!] Password cannot be empty.")
-            continue
-        print("[*] Testing SMTP credentials...")
+    sender_password = os.getenv("SENDER_PASSWORD", "").strip()
+    if sender_password:
+        print("[*] Testing SMTP credentials from configuration...")
         ok, msg = test_smtp_credentials(sender_email, sender_password, host, port)
         if ok:
             print("[✓] SMTP Authentication succeeded!\n")
-            break
         else:
-            print(f"[✗] {msg}")
-            retry = input("Retry entering password? (Y/n): ").strip().lower()
-            if retry not in ("", "y", "yes"):
-                print("Exiting.")
-                return
+            print(f"[!] Configured SMTP password failed: {msg}")
+            sender_password = None
+
+    if not sender_password:
+        while True:
+            sender_password = getpass.getpass("Email Password / App Password (input hidden): ").strip()
+            if not sender_password:
+                print("[!] Password cannot be empty.")
+                continue
+            print("[*] Testing SMTP credentials...")
+            ok, msg = test_smtp_credentials(sender_email, sender_password, host, port)
+            if ok:
+                print("[✓] SMTP Authentication succeeded!\n")
+                break
+            else:
+                print(f"[✗] {msg}")
+                retry = input("Retry entering password? (Y/n): ").strip().lower()
+                if retry not in ("", "y", "yes"):
+                    print("Exiting.")
+                    return
 
     # 3. Grok API Key
     print("--- Grok (xAI) API Configuration ---")
-    while True:
-        grok_key = getpass.getpass("Enter your Grok (xAI) API Key (input hidden): ").strip()
-        if not grok_key:
-            print("[!] API key cannot be empty.")
-            continue
-        print("[*] Testing Grok API connection...")
+    grok_key = os.getenv("GROK_API_KEY", "").strip()
+    grok = None
+    if grok_key:
+        print("[*] Testing Grok API connection from configuration...")
         grok = GrokClient(api_key=grok_key)
         ok, msg = grok.test_connection()
         if ok:
             print(f"[✓] {msg}!\n")
-            break
         else:
-            print(f"[✗] Grok connection failed: {msg}")
-            retry = input("Retry entering Grok API key? (Y/n): ").strip().lower()
-            if retry not in ("", "y", "yes"):
-                print("Exiting.")
-                return
+            print(f"[!] Configured Grok API key failed: {msg}")
+            grok_key = None
+
+    if not grok_key:
+        while True:
+            grok_key = getpass.getpass("Enter your Grok (xAI) API Key (input hidden): ").strip()
+            if not grok_key:
+                print("[!] API key cannot be empty.")
+                continue
+            print("[*] Testing Grok API connection...")
+            grok = GrokClient(api_key=grok_key)
+            ok, msg = grok.test_connection()
+            if ok:
+                print(f"[✓] {msg}!\n")
+                break
+            else:
+                print(f"[✗] Grok connection failed: {msg}")
+                retry = input("Retry entering Grok API key? (Y/n): ").strip().lower()
+                if retry not in ("", "y", "yes"):
+                    print("Exiting.")
+                    return
 
     # 4. Contacts & Resume Paths
     contacts_path = find_or_prompt_contacts_file()
@@ -197,7 +276,14 @@ def main():
 
     # 6. Test / Dry-Run Mode
     print("\n--- Test & Preview Mode ---")
-    test_mode = input("Would you like to send a single TEST email to your own inbox first? (Y/n): ").strip().lower()
+    send_test_preview_env = os.getenv("SEND_TEST_PREVIEW", "").strip().lower()
+    if send_test_preview_env in ("true", "1", "yes"):
+        test_mode = "y"
+    elif send_test_preview_env in ("false", "0", "no"):
+        test_mode = "n"
+    else:
+        test_mode = input("Would you like to send a single TEST email to your own inbox first? (Y/n): ").strip().lower()
+
     if test_mode in ("", "y", "yes") and total_rows > 0:
         first_row = df.iloc[0].to_dict()
         print("\n[*] Asking Grok to analyze and draft for sample row...")
@@ -215,7 +301,13 @@ def main():
             print(f"\nSAMPLE BODY PREVIEW:\n{draft.get('body')}")
             print("=" * 50)
 
-            send_test = input(f"\nSend this preview to your email ({sender_email})? (Y/n): ").strip().lower()
+            if send_test_preview_env in ("true", "1", "yes"):
+                send_test = "y"
+            elif send_test_preview_env in ("false", "0", "no"):
+                send_test = "n"
+            else:
+                send_test = input(f"\nSend this preview to your email ({sender_email})? (Y/n): ").strip().lower()
+
             if send_test in ("", "y", "yes"):
                 print("[*] Sending test email...")
                 ok, send_msg = send_email_with_attachment(
@@ -236,7 +328,12 @@ def main():
 
     # 7. Confirmation to Dispatch
     print("\n--- Ready for Live Dispatch ---")
-    confirm = input(f"Begin processing {total_rows} contacts? (y/N): ").strip().lower()
+    auto_confirm = os.getenv("AUTO_CONFIRM", "").strip().lower() in ("true", "1", "yes")
+    if auto_confirm:
+        print(f"[*] AUTO_CONFIRM is enabled. Starting dispatch for {total_rows} contacts automatically.")
+        confirm = "y"
+    else:
+        confirm = input(f"Begin processing {total_rows} contacts? (y/N): ").strip().lower()
     if confirm not in ("y", "yes"):
         print("[*] Operation cancelled by user.")
         return

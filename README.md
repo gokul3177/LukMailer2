@@ -6,7 +6,7 @@ LukMailer is a portable, terminal-based cold email automation tool designed for 
 
 ## 🚀 Key Features
 
-- **Interactive CLI Wizard:** No hardcoding or configuring `.env` files. Prompts for sender credentials, candidate info, and Grok API keys with masked password inputs.
+- **Flexible Operation (Interactive or Automated):** Run interactively or save your settings to a local `.env` file to skip repetitive manual prompts and send automatically.
 - **Universal Spreadsheet Parsing:** Grok automatically identifies recruiter names, email addresses, companies, and roles from any `.xlsx` or `.csv` column layout.
 - **Smart Quarantine Filter:** If an email is missing, malformed, or company info cannot be determined, it skips sending and logs the row to `output/manual_review.txt`.
 - **Direct PDF Resume Attachment:** Automatically attaches your resume to every outgoing email.
