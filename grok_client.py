@@ -3,41 +3,61 @@ import re
 from openai import OpenAI
 
 class GroqClient:
-    def __init__(self, api_key: str, model: str = "llama-3.3-70b-versatile"):
+    PREFERRED_MODELS = [
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "qwen/qwen3.8-27b",
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+    ]
+
+    def __init__(self, api_key: str, model: str = None):
         self.api_key = api_key
-        self.model = model
         self.client = OpenAI(
             api_key=api_key,
             base_url="https://api.groq.com/openai/v1",
         )
+        self.model = model or self._select_best_model()
+
+    def _select_best_model(self) -> str:
+        try:
+            available = {m.id for m in self.client.models.list().data}
+            for pref in self.PREFERRED_MODELS:
+                if pref in available:
+                    return pref
+            candidates = [
+                m for m in available 
+                if not any(x in m.lower() for x in ["whisper", "guard", "audio"])
+            ]
+            if candidates:
+                return candidates[0]
+        except Exception:
+            pass
+        return "openai/gpt-oss-120b"
 
     def test_connection(self) -> tuple[bool, str]:
         """Validates the Groq API key with a minimal request."""
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": "ping"}
-                ],
-                max_tokens=5
-            )
-            return True, f"Connection successful using model {self.model}"
-        except Exception as e:
-            # Fallback to llama-3.1-8b-instant if model fails
+        models_to_try = [self.model] + [m for m in self.PREFERRED_MODELS if m != self.model]
+        last_error = ""
+        for mod in models_to_try:
             try:
-                self.model = "llama-3.1-8b-instant"
                 response = self.client.chat.completions.create(
-                    model=self.model,
+                    model=mod,
                     messages=[
                         {"role": "system", "content": "You are a helpful assistant."},
                         {"role": "user", "content": "ping"}
                     ],
                     max_tokens=5
                 )
-                return True, f"Connection successful using model {self.model}"
-            except Exception as err:
-                return False, str(err)
+                self.model = mod
+                return True, f"Connection successful using model '{self.model}'"
+            except Exception as e:
+                last_error = str(e)
+                # If model is not found, continue to next candidate
+                if "model_not_found" in last_error or "does not exist" in last_error:
+                    continue
+                return False, last_error
+        return False, last_error
 
     def process_and_draft(self, row_dict: dict, candidate_name: str, target_role: str) -> dict:
         """
