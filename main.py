@@ -220,35 +220,35 @@ def main():
                     print("Exiting.")
                     return
 
-    # 3. Grok API Key
-    print("--- Grok (xAI) API Configuration ---")
-    grok_key = os.getenv("GROK_API_KEY", "").strip()
+    # 3. Groq API Key
+    print("--- Groq API Configuration ---")
+    grok_key = (os.getenv("GROQ_API_KEY") or os.getenv("GROK_API_KEY", "")).strip()
     grok = None
     if grok_key:
-        print("[*] Testing Grok API connection from configuration...")
+        print("[*] Testing Groq API connection from configuration...")
         grok = GrokClient(api_key=grok_key)
         ok, msg = grok.test_connection()
         if ok:
             print(f"[✓] {msg}!\n")
         else:
-            print(f"[!] Configured Grok API key failed: {msg}")
+            print(f"[!] Configured Groq API key failed: {msg}")
             grok_key = None
 
     if not grok_key:
         while True:
-            grok_key = getpass.getpass("Enter your Grok (xAI) API Key (input hidden): ").strip()
+            grok_key = getpass.getpass("Enter your Groq API Key (https://console.groq.com/keys, input hidden): ").strip()
             if not grok_key:
                 print("[!] API key cannot be empty.")
                 continue
-            print("[*] Testing Grok API connection...")
+            print("[*] Testing Groq API connection...")
             grok = GrokClient(api_key=grok_key)
             ok, msg = grok.test_connection()
             if ok:
                 print(f"[✓] {msg}!\n")
                 break
             else:
-                print(f"[✗] Grok connection failed: {msg}")
-                retry = input("Retry entering Grok API key? (Y/n): ").strip().lower()
+                print(f"[✗] Groq connection failed: {msg}")
+                retry = input("Retry entering Groq API key? (Y/n): ").strip().lower()
                 if retry not in ("", "y", "yes"):
                     print("Exiting.")
                     return

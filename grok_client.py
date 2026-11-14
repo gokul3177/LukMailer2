@@ -2,17 +2,17 @@ import json
 import re
 from openai import OpenAI
 
-class GrokClient:
-    def __init__(self, api_key: str, model: str = "grok-2-latest"):
+class GroqClient:
+    def __init__(self, api_key: str, model: str = "llama-3.3-70b-versatile"):
         self.api_key = api_key
         self.model = model
         self.client = OpenAI(
             api_key=api_key,
-            base_url="https://api.x.ai/v1",
+            base_url="https://api.groq.com/openai/v1",
         )
 
     def test_connection(self) -> tuple[bool, str]:
-        """Validates the Grok API key with a minimal request."""
+        """Validates the Groq API key with a minimal request."""
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -22,11 +22,11 @@ class GrokClient:
                 ],
                 max_tokens=5
             )
-            return True, "Connection successful"
+            return True, f"Connection successful using model {self.model}"
         except Exception as e:
-            # Try fallback to grok-beta if grok-2-latest fails
+            # Fallback to llama-3.1-8b-instant if model fails
             try:
-                self.model = "grok-beta"
+                self.model = "llama-3.1-8b-instant"
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=[
@@ -108,7 +108,10 @@ class GrokClient:
         except Exception as e:
             return {
                 "valid": False,
-                "reason": f"Grok API error or parse failure: {str(e)}",
+                "reason": f"Groq API error or parse failure: {str(e)}",
                 "raw_data": cleaned_row
             }
+
+# Backward compatibility alias
+GrokClient = GroqClient
 

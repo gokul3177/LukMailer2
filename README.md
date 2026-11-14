@@ -1,13 +1,13 @@
 # LukMailer — AI-Powered HR Outreach Bot
 
-LukMailer is a portable, terminal-based cold email automation tool designed for job seekers. It uses Grok (xAI) to automatically analyze recruiter spreadsheets (regardless of column layout), draft high-converting, personalized cold pitches, attach your resume PDF, and dispatch emails via SMTP with spam-safe delays.
+LukMailer is a portable, terminal-based cold email automation tool designed for job seekers. It uses Groq (GroqCloud) to automatically analyze recruiter spreadsheets (regardless of column layout), draft high-converting, personalized cold pitches, attach your resume PDF, and dispatch emails via SMTP with spam-safe delays.
 
 ---
 
 ## 🚀 Key Features
 
 - **Flexible Operation (Interactive or Automated):** Run interactively or save your settings to a local `.env` file to skip repetitive manual prompts and send automatically.
-- **Universal Spreadsheet Parsing:** Grok automatically identifies recruiter names, email addresses, companies, and roles from any `.xlsx` or `.csv` column layout.
+- **Universal Spreadsheet Parsing:** Groq automatically identifies recruiter names, email addresses, companies, and roles from any `.xlsx` or `.csv` column layout.
 - **Smart Quarantine Filter:** If an email is missing, malformed, or company info cannot be determined, it skips sending and logs the row to `output/manual_review.txt`.
 - **Direct PDF Resume Attachment:** Automatically attaches your resume to every outgoing email.
 - **Anti-Spam Human Jitter:** Enforces a 35–60 second randomized pause between emails to protect your domain and sender reputation.
@@ -25,7 +25,7 @@ d:/LukMailer/
 ├── output/
 │   ├── sent_history.csv    <-- Log of sent outreach
 │   └── manual_review.txt   <-- Quarantined contacts with missing data
-├── grok_client.py          <-- Grok (xAI API) extraction & pitch generator
+├── grok_client.py          <-- Groq (GroqCloud API) extraction & pitch generator
 ├── mailer.py               <-- SMTP sender & PDF attachment handler
 ├── main.py                 <-- Interactive CLI entry point
 └── requirements.txt        <-- Python dependencies
@@ -65,7 +65,7 @@ python main.py
 Follow the on-screen prompts:
 1. Enter your **Full Name** and **Target Role**.
 2. Enter your **Sending Email** and **App Password**.
-3. Enter your **Grok (xAI) API Key**.
+3. Enter your **Groq API Key** (from https://console.groq.com/keys).
 4. Confirm detected files and opt into the **Test Preview**.
 5. Confirm to begin outreach!
 
